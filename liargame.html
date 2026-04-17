@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>라이어 게임 - 로비</title>
+    <style>
+        /* 기본 배경 및 폰트 설정 */
+        body {
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+            background-color: #1a1a2e;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        /* 메인 화면 중앙의 방 만들기 박스 */
+        .room-setup-container {
+            background-color: #16213e;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #e94560;
+            margin-bottom: 30px;
+        }
+
+        /* 각 설정 입력 영역 */
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        /* 방 제목 입력칸 */
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+            background-color: #1a1a2e;
+            color: white;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+
+        /* 모드 선택 버튼 영역 */
+        .mode-options {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mode-options input[type="radio"] {
+            display: none; /* 기본 라디오 버튼 숨김 */
+        }
+
+        .mode-options label {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            background-color: #0f3460;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 0;
+        }
+
+        /* 선택된 모드 버튼의 색상 변경 */
+        .mode-options input[type="radio"]:checked + label {
+            background-color: #e94560;
+            font-weight: bold;
+        }
+
+        /* 인원수 조절 슬라이더 */
+        input[type="range"] {
+            width: 100%;
+            accent-color: #e94560;
+        }
+
+        /* 게임 시작 버튼 */
+        .start-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: #e94560;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .start-btn:hover {
+            background-color: #c81e3a;
+        }
+
+        /* --- 화면 레이아웃 및 추가 UI 스타일 --- */
+        .screen-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            height: 80vh;
+        }
+
+        /* 게임 로비 전용 래퍼 */
+        #lobby-screen {
+            display: flex;
+            width: 100%;
+            gap: 20px;
+        }
+
+        /* 채팅창 영역 스타일 */
+        .chat-container {
+            flex: 1;
+            background-color: #16213e;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .chat-messages {
+            flex: 1;
+            background-color: #0f3460;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .chat-messages span {
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-wrapper input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .chat-input-wrapper button {
+            padding: 0 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* 기타 버튼 스타일 */
+        .secondary-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #2c3e50;
+            color: white;
+            border: 1px solid #34495e;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* 드롭다운 스타일 */
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+            background-color: #1a1a2e;
+            color: white;
+            font-size: 1em;
+        }
+
+        /* --- 게임 진행 화면 전용 스타일 --- */
+        #game-screen {
+            display: none; /* 초기에는 숨김 */
+            width: 100%;
+            gap: 20px;
+        }
+
+        .game-board {
+            flex: 2;
+            background-color: #16213e;
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0f3460;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .word-display {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #f1c40f;
+            margin-bottom: 20px;
+        }
+
+        /* 오른쪽 위 플레이어 채팅 표기 영역 */
+        #turn-chat-display {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background-color: #0f3460;
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .turn-message {
+            font-size: 1.1em;
+            color: #e0e0e0;
+        }
+
+        /* 상태 메세지 (당신의 턴입니다 등) */
+        #status-message {
+            text-align: center;
+            font-size: 1.8em;
+            color: #e94560;
+            margin: 40px 0;
+            font-weight: bold;
+        }
+
+        /* 투표 패널 */
+        #action-panel {
+            background-color: #0f3460;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: auto;
+            display: none;
+            text-align: center;
+        }
+
+        .vote-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .vote-btn {
+            padding: 10px 20px;
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .vote-btn:hover { background-color: #3498db; }
+        .vote-btn.selected { background-color: #e74c3c; border: 2px solid white; }
+        
+        .timer-display {
+            font-size: 1.5em;
+            color: #e74c3c;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+    /* 닉네임 설정 화면 오버레이 */
+    #nickname-screen {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: #1a1a2e; /* 게임 배경색과 동일하게 전체 화면 덮기 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    </style>
+</head>
+<body>
+
+    <!-- ================= NICKNAME SCREEN ================= -->
+    <div id="nickname-screen">
+        <div class="room-setup-container" style="max-width: 350px;">
+            <h2 style="text-align: center; color: #e94560;">닉네임 설정</h2>
+            <div class="input-group">
+                <input type="text" id="nickname-input" placeholder="사용할 닉네임을 입력하세요" autocomplete="off" autofocus>
+            </div>
+            <button class="start-btn" id="set-nickname-btn">게임 입장하기</button>
+        </div>
+    </div>
+
+    <div class="screen-container">
+        
+        <!-- ================= LOBBY SCREEN ================= -->
+        <div id="lobby-screen">
+            <!-- 방 설정 영역 -->
+            <div class="room-setup-container">
+                <h1>라이어 게임</h1>
+
+                <div class="input-group">
+                    <label for="room-title">방 제목</label>
+                    <input type="text" id="room-title" value="재미있는 라이어 게임 한 판!" autocomplete="off">
+                </div>
+
+                <div class="input-group">
+                    <label>게임 모드</label>
+                    <div class="mode-options">
+                        <input type="radio" id="mode-basic" name="mode" value="basic" checked>
+                        <label for="mode-basic">기본 모드</label>
+                        
+                        <input type="radio" id="mode-mismatch" name="mode" value="mismatch">
+                        <label for="mode-mismatch">미스매치 모드</label>
+                    </div>
+                </div>
+
+                <!-- 목표 점수 설정 (규칙 5-1) -->
+                <div class="input-group">
+                    <label for="target-score">목표 점수</label>
+                    <select id="target-score">
+                        <option value="10">10점</option>
+                        <option value="15">15점</option>
+                        <option value="20">20점</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="player-count">참가 인원: <span id="count-display">6</span>명 (3~10명)</label>
+                    <input type="range" id="player-count" min="3" max="10" value="6">
+                </div>
+
+                <button class="start-btn" id="start-game-btn">방 만들기 및 게임 시작</button>
+                <!-- 초대 링크 생성 버튼 (규칙 4) -->
+                <button class="secondary-btn" id="invite-btn">초대 링크 복사</button>
+            </div>
+
+            <!-- 대기방 채팅 (규칙 6) -->
+            <div class="chat-container">
+                <h3>대기방 채팅</h3>
+                <div class="chat-messages" id="lobby-chat-messages">
+                    <span>[시스템] 대기방에 입장하셨습니다.</span>
+                </div>
+                <div class="chat-input-wrapper">
+                    <input type="text" id="lobby-chat-input" placeholder="메시지 입력..." autocomplete="off">
+                    <button id="lobby-chat-send">전송</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= GAME SCREEN ================= -->
+        <div id="game-screen">
+            <!-- 게임 보드 영역 -->
+            <div class="game-board">
+                <div class="game-header">
+                    <div id="game-round-info">1 라운드</div>
+                    <div id="game-score-info">내 점수: 0 / 목표: 10</div>
+                </div>
+
+                <!-- 주제 및 단어 표시 (규칙 8, 9, 19) -->
+                <div class="word-display" id="word-display">주제: 동물 (단어 확인 중...)</div>
+
+                <!-- 상태 메시지 (규칙 10) -->
+                <div id="status-message">게임을 준비하는 중입니다...</div>
+
+                <!-- 오른쪽 위 플레이어 채팅 표기 (규칙 10) -->
+                <div id="turn-chat-display">
+                    <div style="color: #3498db; font-weight: bold; border-bottom: 1px solid #3498db; padding-bottom: 5px;">플레이어 발언</div>
+                    <div id="turn-chat-list"></div>
+                </div>
+
+                <!-- 액션 패널: 투표, 사형/석방 등 (규칙 11~15) -->
+                <div id="action-panel">
+                    <div class="timer-display" id="action-timer">00:20</div>
+                    <div id="action-title">의심되는 라이어를 선택하세요!</div>
+                    <div class="vote-buttons" id="vote-buttons-container">
+                        <!-- 동적으로 버튼이 추가됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 게임 내 채팅 (규칙 6) -->
+            <div class="chat-container">
+                <h3>게임 채팅</h3>
+                <div class="chat-messages" id="game-chat-messages">
+                    <span>[시스템] 게임이 시작되었습니다.</span>
+                </div>
+                <div class="chat-input-wrapper">
+                    <input type="text" id="game-chat-input" placeholder="메시지 입력..." autocomplete="off">
+                    <button id="game-chat-send">전송</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- UI 요소 참조 ---
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const gameScreen = document.getElementById('game-screen');
+        
+        // 로비 설정 요소
+        const playerCountSlider = document.getElementById('player-count');
+        const countDisplay = document.getElementById('count-display');
+        const startBtn = document.getElementById('start-game-btn');
+        const inviteBtn = document.getElementById('invite-btn');
+        const roomTitleInput = document.getElementById('room-title');
+        const targetScoreSelect = document.getElementById('target-score');
+
+        // 게임 상태 관리 요소
+        const statusMessage = document.getElementById('status-message');
+        const actionPanel = document.getElementById('action-panel');
+        const actionTitle = document.getElementById('action-title');
+        const actionTimer = document.getElementById('action-timer');
+        const voteButtonsContainer = document.getElementById('vote-buttons-container');
+        const turnChatList = document.getElementById('turn-chat-list');
+        const gameChatInput = document.getElementById('game-chat-input');
+        
+        // 닉네임 설정 요소
+        const nicknameScreen = document.getElementById('nickname-screen');
+        const nicknameInput = document.getElementById('nickname-input');
+        const setNicknameBtn = document.getElementById('set-nickname-btn');
+
+        // 게임 상태 변수
+        let myNickname = ""; 
+        let isMyTurnToSpeak = false; // 현재 내 턴인지 확인
+        let currentPhaseTimer = null;
+
+        // 슬라이더 인원수 업데이트
+        playerCountSlider.addEventListener('input', function() {
+            countDisplay.textContent = this.value;
+        });
+
+        // 닉네임 설정 완료 처리
+        setNicknameBtn.addEventListener('click', function() {
+            const inputVal = nicknameInput.value.trim();
+            if (inputVal !== "") {
+                myNickname = inputVal;
+                nicknameScreen.style.display = 'none'; // 닉네임 설정 화면 숨기고 로비 표시
+                addChatMessage('lobby-chat-messages', '[시스템]', `${myNickname}님이 입장하셨습니다.`);
+            } else {
+                alert("닉네임을 입력해주세요.");
+            }
+        });
+        nicknameInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') setNicknameBtn.click(); });
+
+        // 초대 링크 복사 (규칙 4)
+        inviteBtn.addEventListener('click', function() {
+            // 실제 서버 환경에서는 고유 방 ID를 생성하여 링크에 포함시킵니다.
+            const dummyLink = window.location.href + "?room=ABCD123";
+            navigator.clipboard.writeText(dummyLink).then(() => {
+                addChatMessage('lobby-chat-messages', '[시스템]', '초대 링크가 클립보드에 복사되었습니다.');
+            });
+        });
+
+        // 게임 시작 버튼 클릭
+        startBtn.addEventListener('click', function() {
+            const roomTitle = roomTitleInput.value;
+            const selectedMode = document.querySelector('input[name="mode"]:checked').value;
+            const maxPlayers = playerCountSlider.value;
+            const targetScore = targetScoreSelect.value; // 규칙 5-1
+
+            const roomData = {
+                title: roomTitle,
+                mode: selectedMode,
+                players: maxPlayers,
+                scoreToWin: targetScore
+            };
+
+            // 팝업 없이 로비 숨기고 게임 화면 표시 (규칙 23)
+            lobbyScreen.style.display = 'none';
+            gameScreen.style.display = 'flex';
+
+            // 시뮬레이션: 게임 진행 플로우 시작
+            startGameFlow(roomData);
+        });
+
+        // --- 채팅 시스템 (규칙 6, 10) ---
+        function addChatMessage(containerId, sender, message) {
+            const container = document.getElementById(containerId);
+            const msgSpan = document.createElement('span');
+            msgSpan.innerHTML = `<strong>${sender}</strong>: ${message}`;
+            container.appendChild(msgSpan);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        document.getElementById('lobby-chat-send').addEventListener('click', () => {
+            const input = document.getElementById('lobby-chat-input');
+            if (input.value.trim() !== '') {
+                addChatMessage('lobby-chat-messages', myNickname, input.value);
+                input.value = '';
+            }
+        });
+
+        document.getElementById('game-chat-send').addEventListener('click', () => {
+            const input = gameChatInput;
+            const msg = input.value.trim();
+            if (msg !== '') {
+                // 내 턴일 때 첫 채팅은 우측 상단 패널로 이동 (규칙 10)
+                if (isMyTurnToSpeak) {
+                    const turnMsg = document.createElement('div');
+                    turnMsg.className = 'turn-message';
+                    turnMsg.innerText = `${myNickname}: ${msg}`;
+                    turnChatList.appendChild(turnMsg);
+                    
+                    isMyTurnToSpeak = false; // 한 번 치면 턴 종료로 간주
+                    statusMessage.innerText = "다른 플레이어의 턴을 기다리는 중입니다...";
+                } else {
+                    addChatMessage('game-chat-messages', myNickname, msg);
+                }
+                input.value = '';
+            }
+        });
+
+        // 엔터키 채팅 지원
+        document.getElementById('lobby-chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') document.getElementById('lobby-chat-send').click(); });
+        gameChatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') document.getElementById('game-chat-send').click(); });
+
+
+        // --- 게임 흐름 제어 (상태 머신 시뮬레이션) ---
+        // 정해진 시간(setTimeout)을 사용하여 진행 (규칙 22)
+        function startGameFlow(roomData) {
+            statusMessage.innerText = "단어를 분배하고 순서를 섞는 중입니다...";
+            // 규칙 7: 순서 랜덤 섞기 처리 위치
+            
+            setTimeout(() => {
+                // 규칙 8, 9: 역할 분배 (시뮬레이션)
+                document.getElementById('word-display').innerText = "당신은 라이어입니다 (주제: 과일)";
+                
+                // 첫 번째 플레이어 턴 시작 (내 턴이라고 가정)
+                startPlayerTurn();
+            }, 3000);
+        }
+
+        function startPlayerTurn() {
+            statusMessage.innerText = "당신의 턴입니다. 단어를 설명하세요."; // 규칙 10
+            isMyTurnToSpeak = true;
+
+            // 시뮬레이션: 15초 뒤 모든 턴이 끝났다고 가정하고 투표로 이동
+            setTimeout(() => {
+                isMyTurnToSpeak = false;
+                startVotingPhase();
+            }, 15000);
+        }
+
+        function startTimer(seconds, callback) {
+            let timeLeft = seconds;
+            actionTimer.innerText = `00:${timeLeft < 10 ? '0'+timeLeft : timeLeft}`;
+            
+            if (currentPhaseTimer) clearInterval(currentPhaseTimer);
+            
+            currentPhaseTimer = setInterval(() => {
+                timeLeft--;
+                actionTimer.innerText = `00:${timeLeft < 10 ? '0'+timeLeft : timeLeft}`;
+                if (timeLeft <= 0) {
+                    clearInterval(currentPhaseTimer);
+                    callback();
+                }
+            }, 1000);
+        }
+
+        // 투표 페이즈 (규칙 11, 12)
+        function startVotingPhase() {
+            statusMessage.innerText = "모든 턴이 종료되었습니다. 투표를 진행합니다.";
+            actionPanel.style.display = 'block';
+            actionTitle.innerText = "라이어로 의심되는 사람을 투표하세요 (1명만 선택 가능)";
+            
+            // 버튼 생성 시뮬레이션
+            voteButtonsContainer.innerHTML = '';
+            const mockPlayers = ['Player_A', 'Player_B', 'Player_C'];
+            mockPlayers.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'vote-btn';
+                btn.innerText = p;
+                // 투표 권한 1명 제한 및 변경 기능 (규칙 12)
+                btn.onclick = function() {
+                    document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                };
+                voteButtonsContainer.appendChild(btn);
+            });
+
+            // 20초 투표 진행 (규칙 11, 22)
+            startTimer(20, () => {
+                // 투표 완료 후 동률 체크 (규칙 14) 및 최후의 반론 (규칙 13) 이동
+                startFinalDefensePhase("Player_A"); 
+            });
+        }
+
+        // 최후의 반론 (규칙 13)
+        function startFinalDefensePhase(suspectName) {
+            actionPanel.style.display = 'none';
+            statusMessage.innerText = `[${suspectName}] 최후의 반론 시간입니다. (다른 사람은 채팅 금지)`;
+            
+            // 실제로는 suspectName 외의 플레이어는 gameChatInput.disabled = true; 처리
+
+            // 반론 30초 대기 후 사형/석방 페이즈로 이동
+            setTimeout(() => {
+                startExecutionPhase(suspectName);
+            }, 10000); // 테스트를 위해 10초로 단축 (실제 30초)
+        }
+
+        // 사형/석방 페이즈 (규칙 15)
+        function startExecutionPhase(suspectName) {
+            actionPanel.style.display = 'block';
+            actionTitle.innerText = `[${suspectName}] 플레이어를 사형하시겠습니까?`;
+            
+            voteButtonsContainer.innerHTML = `
+                <button class="vote-btn" style="background-color:#c0392b;">사형</button>
+                <button class="vote-btn" style="background-color:#27ae60;">석방</button>
+            `;
+            // 버튼 선택 로직 생략 (위와 동일한 방식으로 단일 선택 구현)
+
+            startTimer(15, () => {
+                // 시뮬레이션: 사형 결정 및 파이널 페이즈 진입 (규칙 16)
+                actionPanel.style.display = 'none';
+                startFinalPhase();
+            });
+        }
+
+        // 파이널 페이즈 (규칙 16, 17)
+        function startFinalPhase() {
+            statusMessage.innerText = "사형된 플레이어는 라이어였습니다!\n라이어는 최후의 단어를 맞추세요.";
+            // 라이어에게만 isMyTurnToSpeak = true 를 주어 채팅을 보드에 띄우고 정답 체크
+        }
+    </script>
+</body>
+</html>
