@@ -423,6 +423,9 @@
 
     </div>
 
+    <!-- PeerJS 라이브러리 추가 -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
     <script>
         // --- UI 요소 참조 ---
         const lobbyScreen = document.getElementById('lobby-screen');
@@ -434,6 +437,7 @@
         const startBtn = document.getElementById('start-game-btn');
         const inviteBtn = document.getElementById('invite-btn');
         const roomTitleInput = document.getElementById('room-title');
+        const roomSetupContainer = document.querySelector('.room-setup-container');
         const targetScoreSelect = document.getElementById('target-score');
 
         // 게임 상태 관리 요소
@@ -452,8 +456,14 @@
 
         // 게임 상태 변수
         let myNickname = ""; 
+        let myNickname = "";
         let isMyTurnToSpeak = false; // 현재 내 턴인지 확인
         let currentPhaseTimer = null;
+
+        // --- PeerJS 네트워크 변수 ---
+        let peer;
+        let myPeerId = null;
+        let connections = []; // 모든 플레이어와의 연결을 저장
 
         // 슬라이더 인원수 업데이트
         playerCountSlider.addEventListener('input', function() {
@@ -467,20 +477,103 @@
                 myNickname = inputVal;
                 nicknameScreen.style.display = 'none'; // 닉네임 설정 화면 숨기고 로비 표시
                 addChatMessage('lobby-chat-messages', '[시스템]', `${myNickname}님이 입장하셨습니다.`);
+                initializePeerSystem(); // 닉네임 설정 후 PeerJS 시스템 초기화
             } else {
                 alert("닉네임을 입력해주세요.");
             }
         });
         nicknameInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') setNicknameBtn.click(); });
 
+        // --- PeerJS 핵심 로직 ---
+        function initializePeerSystem() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomIdFromUrl = urlParams.get('room');
+
+            peer = new Peer(); // 내 Peer 객체 생성 (ID는 PeerJS 서버가 자동 할당)
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                console.log('내 Peer ID:', myPeerId);
+
+                if (roomIdFromUrl) { // 초대 링크를 통해 접속한 경우 (클라이언트)
+                    roomSetupContainer.style.display = 'none'; // 방 설정 메뉴 숨기기
+                    const conn = peer.connect(roomIdFromUrl, { metadata: { nickname: myNickname } });
+                    setupConnection(conn);
+                } else { // 직접 접속한 경우 (호스트)
+                    addChatMessage('lobby-chat-messages', '[시스템]', `${myNickname}님이 방을 생성했습니다.`);
+                    inviteBtn.disabled = false; // 내 ID가 생겼으므로 초대 버튼 활성화
+                }
+            });
+
+            // 다른 Peer로부터 연결 요청이 왔을 때 (호스트만 해당)
+            peer.on('connection', (conn) => {
+                console.log(`${conn.metadata.nickname} (${conn.peer})님이 연결을 요청했습니다.`);
+                setupConnection(conn);
+            });
+        }
+
+        // 호스트와 클라이언트 모두의 연결(connection)을 설정하는 함수
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                console.log(`${conn.metadata.nickname}님과 연결되었습니다.`);
+                connections.push(conn);
+
+                // 새로운 사용자가 접속했음을 모든 사람에게 알림
+                const joinMessage = {
+                    type: 'system-join',
+                    nickname: conn.metadata.nickname
+                };
+                broadcast(joinMessage);
+            });
+
+            // 상대방으로부터 데이터를 받았을 때
+            conn.on('data', (data) => {
+                console.log('데이터 수신:', data);
+                // 데이터 타입에 따라 다른 동작 수행
+                switch(data.type) {
+                    case 'chat':
+                        addChatMessage('lobby-chat-messages', data.nickname, data.message);
+                        break;
+                    case 'system-join':
+                        addChatMessage('lobby-chat-messages', '[시스템]', `${data.nickname}님이 입장하셨습니다.`);
+                        break;
+                }
+            });
+
+            conn.on('close', () => {
+                console.log(`${conn.metadata.nickname}님과의 연결이 끊겼습니다.`);
+                addChatMessage('lobby-chat-messages', '[시스템]', `${conn.metadata.nickname}님이 퇴장했습니다.`);
+                connections = connections.filter(c => c.peer !== conn.peer);
+            });
+        }
+
+        // 모든 연결된 플레이어에게 데이터를 전송(브로드캐스트)하는 함수
+        function broadcast(data) {
+            // 내가 보낸 데이터는 내 화면에도 직접 표시해야 함
+            if (data.type === 'chat') {
+                addChatMessage('lobby-chat-messages', data.nickname, data.message);
+            } else if (data.type === 'system-join') {
+                 addChatMessage('lobby-chat-messages', '[시스템]', `${data.nickname}님이 입장하셨습니다.`);
+            }
+
+            // 다른 모든 사람에게 전송
+            connections.forEach(conn => {
+                conn.send(data);
+            });
+        }
+
         // 초대 링크 복사 (규칙 4)
         inviteBtn.addEventListener('click', function() {
             // 실제 서버 환경에서는 고유 방 ID를 생성하여 링크에 포함시킵니다.
             const dummyLink = window.location.href + "?room=ABCD123";
             navigator.clipboard.writeText(dummyLink).then(() => {
+            // 이제 내 Peer ID를 포함한 진짜 초대 링크를 생성합니다.
+            const inviteLink = `${window.location.origin}${window.location.pathname}?room=${myPeerId}`;
+            navigator.clipboard.writeText(inviteLink).then(() => {
                 addChatMessage('lobby-chat-messages', '[시스템]', '초대 링크가 클립보드에 복사되었습니다.');
             });
         });
+        inviteBtn.disabled = true; // 초기에는 비활성화
 
         // 게임 시작 버튼 클릭
         startBtn.addEventListener('click', function() {
@@ -517,6 +610,14 @@
             const input = document.getElementById('lobby-chat-input');
             if (input.value.trim() !== '') {
                 addChatMessage('lobby-chat-messages', myNickname, input.value);
+            const message = input.value.trim();
+            if (message !== '') {
+                // 이제 채팅 메시지를 네트워크로 전송합니다.
+                broadcast({
+                    type: 'chat',
+                    nickname: myNickname,
+                    message: message
+                });
                 input.value = '';
             }
         });
