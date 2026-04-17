@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>움직이는 상자 잡기 게임</title>
+    <style>
+        /* 게임 화면을 중앙에 배치하고 배경색을 설정합니다. */
+        body { 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            background-color: #2c3e50; 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        /* 게임 캔버스 스타일 */
+        canvas { 
+            background-color: #ecf0f1; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
+            cursor: crosshair; 
+        }
+        #scoreBoard { 
+            font-size: 28px; 
+            margin-bottom: 20px; 
+            font-weight: bold; 
+        }
+    </style>
+</head>
+<body>
+    <div id="scoreBoard">점수: <span id="score">0</span></div>
+    
+    <!-- 게임이 그려질 캔버스 영역 -->
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+
+        let score = 0;
+        
+        // 목표물(상자)의 초기 상태 설정
+        let target = { 
+            x: 50, 
+            y: 50, 
+            size: 40, 
+            speedX: 2.5, 
+            speedY: 2.5 
+        };
+
+        // 상자를 그리는 함수
+        function drawTarget() {
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(target.x, target.y, target.size, target.size);
+        }
+
+        // 게임 화면을 업데이트하는 함수 (매 프레임마다 실행됨)
+        function update() {
+            // 이전 프레임의 그림을 지웁니다.
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 상자 위치 이동
+            target.x += target.speedX;
+            target.y += target.speedY;
+
+            // 벽에 부딪히면 튕겨 나오도록 방향 반전
+            if (target.x <= 0 || target.x + target.size >= canvas.width) target.speedX *= -1;
+            if (target.y <= 0 || target.y + target.size >= canvas.height) target.speedY *= -1;
+
+            drawTarget();
+            
+            // 다음 프레임 요청
+            requestAnimationFrame(update);
+        }
+
+        // 마우스 클릭 이벤트 처리
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            // 캔버스 내에서의 정확한 마우스 좌표 계산
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // 클릭한 위치가 상자 내부인지 확인
+            if (mouseX >= target.x && mouseX <= target.x + target.size &&
+                mouseY >= target.y && mouseY <= target.y + target.size) {
+                
+                score++;
+                scoreElement.innerText = score;
+                
+                // 점수를 얻을 때마다 속도를 조금씩 올려 난이도를 높입니다.
+                target.speedX += (target.speedX > 0 ? 0.5 : -0.5);
+                target.speedY += (target.speedY > 0 ? 0.5 : -0.5);
+            }
+        });
+
+        // 게임 루프 시작
+        update();
+    </script>
+</body>
+</html>
